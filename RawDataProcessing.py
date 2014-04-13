@@ -200,7 +200,7 @@ class StockDailyData( AbstractDailyData ):
 				if year == datetime.datetime.today().year and month > datetime.datetime.today().month:
 					continue
 				url = 'http://www.twse.com.tw/ch/trading/exchange/STOCK_DAY/STOCK_DAY_print.php?genpage=genpage/Report'+ datetime.date(year, month, 1).strftime( '%Y%m' ) +'/'+ datetime.date(year, month, 1).strftime( '%Y%m' ) +'_F3_1_8_' + stockNumber + '.php&type=csv'
-				filename = 'Stock_HistoData/stock_' + stockNumber + '_' + datetime.date(year, month, 1).strftime( '%Y%m' ) + '.csv'
+				filename = '../Stock_HistoData/stock_' + stockNumber + '_' + datetime.date(year, month, 1).strftime( '%Y%m' ) + '.csv'
 				urllib.urlretrieve(url, filename)
 
 
