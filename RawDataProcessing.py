@@ -11,6 +11,10 @@ import urllib
 from abc import ABCMeta, abstractmethod
 
 class AbstractDailyData:
+	"""
+	Class Type : Interface
+	Class Usage: Download and load daily data
+	"""
 	__metaclass__ = ABCMeta
 
 	@abstractmethod
@@ -57,9 +61,16 @@ class OptionDailyData( AbstractDailyData ):
 			reader = csv.DictReader(handle, self.Keys)
 			next(reader) # skip the header row
 			for row in reader:
-				row = self._processRow(row)
-				if self._validateRow(row, **kwargs) and row['Date'] >= beginDate and row['Date'] <= endDate:
-					result.append( row )
+				try:
+					row = self._processRow(row)
+				except:
+					continue
+
+				if self._validateRow(row, **kwargs) and row['Date'] >= beginDate:
+					if row['Date'] <= endDate:
+						result.append( row )
+					else:
+						return result
 		return result
 
 	def getDataByDate(self, beginDate='2001/01/01', endDate='2013/12/31', **kwargs):
@@ -73,10 +84,10 @@ class OptionDailyData( AbstractDailyData ):
 		data = []
 		for year in range(beginDate.year, endDate.year+1):
 			if year == 2001:
-				data += self._readDataFromCSV('Option_HistoData/2001_opt.csv', beginDate, endDate, **kwargs)
+				data += self._readDataFromCSV('../Option_HistoData/2001_opt.csv', beginDate, endDate, **kwargs)
 			else:
-				data += self._readDataFromCSV('Option_HistoData/' + str(year) + '_opt/' + str(year) + '_01_06_opt.csv', beginDate, endDate, **kwargs)
-				data += self._readDataFromCSV('Option_HistoData/' + str(year) + '_opt/' + str(year) + '_07_12_opt.csv', beginDate, endDate, **kwargs)
+				data += self._readDataFromCSV('../Option_HistoData/' + str(year) + '_opt/' + str(year) + '_01_06_opt.csv', beginDate, endDate, **kwargs)
+				data += self._readDataFromCSV('../Option_HistoData/' + str(year) + '_opt/' + str(year) + '_07_12_opt.csv', beginDate, endDate, **kwargs)
 		return data
 
 	def saveAsCSV(self, data, filename):
@@ -160,7 +171,7 @@ class StockDailyData( AbstractDailyData ):
 					continue
 				if year == endDate.year and month > endDate.month:
 					continue
-				data += self._readDataFromCSV('Stock_HistoData/stock_' + kwargs['stockNumber'] + '_' + datetime.date(year, month, 1).strftime( '%Y%m' ) + '.csv', beginDate, endDate, **kwargs)
+				data += self._readDataFromCSV('../Stock_HistoData/stock_' + kwargs['stockNumber'] + '_' + datetime.date(year, month, 1).strftime( '%Y%m' ) + '.csv', beginDate, endDate, **kwargs)
 		return data
 
 	def saveAsCSV(self, data, filename):
@@ -190,6 +201,7 @@ class StockDailyData( AbstractDailyData ):
 		return result
 
 	def downloadAllCSVData(self, stockNumber='2330', beginYYYYMM='201401'):
+		"""Download stock data by number and date."""
 		if isinstance(beginYYYYMM, str):
 			beginYYYYMM = datetime.datetime.strptime( beginYYYYMM, '%Y%m' ).date()
 
