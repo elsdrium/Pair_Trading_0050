@@ -1,4 +1,5 @@
 from RawDataProcessing import *
+import time
 
 od = OptionDailyData()
 sd = StockDailyData()
@@ -8,8 +9,12 @@ sd = StockDailyData()
 
 m201212 = datetime.datetime.strptime( '201212', '%Y%m' ).date()
 
-result = od.getDataByDate('2012/11/01', '2012/12/26', Contract='TXO', Type='Call', Maturity=m201212)
-print result
+startTime = time.time()
+result = od.getDataByDate('2012/11/01', '2012/12/26', Contract='TXO', Type='Call', Strike=8000, Maturity=m201212)
+endTime = time.time()
+
+print len(result)
+print endTime - startTime
 
 """
 from IPython.display import display
