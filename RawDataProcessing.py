@@ -229,12 +229,11 @@ class StockDailyData( AbstractDailyData ):
 
 
 
+if __name__ == '__main__':
+	oddata = OptionDailyData()
+	data = oddata.getDataByDate('2001/01/01', '2001/12/26', Contract='TXO', Type='Call')
+	#oddata.saveAsCSV( data, 'waha.csv')
+	#data2 = oddata.loadCSV('waha.csv')
 
-#oddata = OptionDailyData()
-#data = oddata.getDataByDate('2001/01/01', '2001/12/26', Contract='TXO', Type='Call')
-#oddata.saveAsCSV( data, 'waha.csv')
-#data2 = oddata.loadCSV('waha.csv')
-
-#sddata = StockDailyData()
-#sddata.downloadAllCSVData('0050', '200306')  # Run this once is enough
-
+	sddata = StockDailyData()
+	sddata.downloadAllCSVData('0050', '200306')  # Run this once is enough
