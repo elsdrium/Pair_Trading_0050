@@ -89,10 +89,10 @@ class OptionDailyData( AbstractDailyData ):
 		data = []
 		for year in range(beginDate.year, endDate.year+1):
 			if year == 2001:
-				data += self._readDataFromCSV('../Option_HistoData/2001_opt.csv', beginDate, endDate, **kwargs)
+				data += self._readDataFromCSV('Option_HistoData/2001_opt.csv', beginDate, endDate, **kwargs)
 			else:
-				data += self._readDataFromCSV('../Option_HistoData/' + str(year) + '_opt/' + str(year) + '_01_06_opt.csv', beginDate, endDate, **kwargs)
-				data += self._readDataFromCSV('../Option_HistoData/' + str(year) + '_opt/' + str(year) + '_07_12_opt.csv', beginDate, endDate, **kwargs)
+				data += self._readDataFromCSV('Option_HistoData/' + str(year) + '_opt/' + str(year) + '_01_06_opt.csv', beginDate, endDate, **kwargs)
+				data += self._readDataFromCSV('Option_HistoData/' + str(year) + '_opt/' + str(year) + '_07_12_opt.csv', beginDate, endDate, **kwargs)
 		return data
 
 	def saveAsCSV(self, data, filename):
@@ -181,7 +181,7 @@ class StockDailyData( AbstractDailyData ):
 					continue
 				if year == endDate.year and month > endDate.month:
 					continue
-				data += self._readDataFromCSV('../Stock_HistoData/stock_' + kwargs['stockNumber'] + '_' + datetime.date(year, month, 1).strftime( '%Y%m' ) + '.csv', beginDate, endDate, **kwargs)
+				data += self._readDataFromCSV('Stock_HistoData/stock_' + kwargs['stockNumber'] + '_' + datetime.date(year, month, 1).strftime( '%Y%m' ) + '.csv', beginDate, endDate, **kwargs)
 		return data
 
 	def saveAsCSV(self, data, filename):
@@ -224,7 +224,7 @@ class StockDailyData( AbstractDailyData ):
 				if year == datetime.datetime.today().year and month > datetime.datetime.today().month:
 					continue
 				url = 'http://www.twse.com.tw/ch/trading/exchange/STOCK_DAY/STOCK_DAY_print.php?genpage=genpage/Report'+ datetime.date(year, month, 1).strftime( '%Y%m' ) +'/'+ datetime.date(year, month, 1).strftime( '%Y%m' ) +'_F3_1_8_' + stockNumber + '.php&type=csv'
-				filename = '../Stock_HistoData/stock_' + stockNumber + '_' + datetime.date(year, month, 1).strftime( '%Y%m' ) + '.csv'
+				filename = 'Stock_HistoData/stock_' + stockNumber + '_' + datetime.date(year, month, 1).strftime( '%Y%m' ) + '.csv'
 				urllib.urlretrieve(url, filename)
 
 
