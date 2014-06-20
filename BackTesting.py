@@ -11,4 +11,4 @@ def StrategyTesting(beginDate, endDate, strategy, optionData=None, stockData=Non
 		if data[dtIdx] < beginDate: continue
 		if data[dtIdx] > endDate:   break
 
-		# not finish
+		strategy(data)

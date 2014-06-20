@@ -1,4 +1,6 @@
 from RawDataProcessing import *
+from BackTesting import *
+from matplotlib import pylab as pl
 import time
 
 od = OptionDailyData()
@@ -15,6 +17,9 @@ result = od.getDataByDate('2012/11/01', '2012/12/26', Contract='TXO', Type='Call
 
 print len(result)
 #print endTime - startTime
+
+closeIdx = od.invKeys['Close']
+pl.plot( range(len(result)), [ r[closeIdx] for r in result ] )
 
 """
 from IPython.display import display
