@@ -12,7 +12,7 @@ sd = StockDailyData()
 m201212 = datetime.datetime.strptime( '201212', '%Y%m' ).date()
 
 #startTime = time.time()
-result = od.getDataByDate('2012/11/01', '2012/12/26', Contract='TXO', Type='Call', Strike=8000, Maturity=m201212)
+result = od.getDataByDate('2012/01/01', '2012/02/26', Contract='TXO', Type='Call', Strike=8000, Maturity=m201212)
 #endTime = time.time()
 
 print len(result)
