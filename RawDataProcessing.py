@@ -1,8 +1,10 @@
 # -*- coding: utf-8 -*-
 """
-Filtering the TXO data
+Processing the raw data of TXO, stock and Taiwan weighted index
 from 2001 to 2013
 """
+
+__author__ = 'chen hsueh-min'
 
 import csv
 import datetime
@@ -19,7 +21,7 @@ class AbstractDailyData:
 
 
 
-class OptionDailyData(AbstractDailyData):
+class RawOptionDailyData(AbstractDailyData):
 	Keys = (
 		'Date', 'Contract', 'Maturity', 'Strike', 'Type', 'Open', 'High', 'Low', 'Close', 'Volume', 'Settlement', 'OI',
 		'LastBid', 'LastOffer', 'HisHigh', 'HisLow')
@@ -87,11 +89,11 @@ class OptionDailyData(AbstractDailyData):
 		data = []
 		for year in range(beginDate.year, endDate.year + 1):
 			if year == 2001:
-				data += self._readDataFromCSV('Option_HistoData/2001_opt.csv', beginDate, endDate, **kwargs)
+				data += self._readDataFromCSV('Option_RawHistoData/2001_opt.csv', beginDate, endDate, **kwargs)
 			else:
-				data += self._readDataFromCSV('Option_HistoData/' + str(year) + '_opt/' + str(year) + '_01_06_opt.csv',
+				data += self._readDataFromCSV('Option_RawHistoData/' + str(year) + '_opt/' + str(year) + '_01_06_opt.csv',
 				                              beginDate, endDate, **kwargs)
-				data += self._readDataFromCSV('Option_HistoData/' + str(year) + '_opt/' + str(year) + '_07_12_opt.csv',
+				data += self._readDataFromCSV('Option_RawHistoData/' + str(year) + '_opt/' + str(year) + '_07_12_opt.csv',
 				                              beginDate, endDate, **kwargs)
 		return data
 
@@ -126,6 +128,15 @@ class OptionDailyData(AbstractDailyData):
 				if self._validateRow(row, **kwargs):
 					result.append(tuple(row))
 		return result
+
+# we will consider TXO only
+class OptionDailyData(AbstractDailyData):
+	Keys = (
+		'Date', 'Contract', 'Maturity', 'Strike', 'Type', 'Open', 'High', 'Low', 'Close', 'Volume', 'Settlement', 'OI',
+		'LastBid', 'LastOffer', 'HisHigh', 'HisLow')
+	invKeys = {'Date': 0, 'Contract': 1, 'Maturity': 2, 'Strike': 3, 'Type': 4, 'Open': 5, 'High': 6, 'Low': 7,
+	           'Close': 8, 'Volume': 9, 'Settlement': 10, 'OI': 11, 'LastBid': 12, 'LastOffer': 13, 'HisHigh': 14,
+	           'HisLow': 15}
 
 
 class StockDailyData(AbstractDailyData):
@@ -301,7 +312,7 @@ class IndexDailyData(AbstractDailyData):
 				if year == endDate.year and month > endDate.month:
 					continue
 				data += self._readDataFromCSV(
-					'Taiwan_StockIndex/MI_5MINS_HIST{0}{1:0>2d}'.format(year - 1911, month) + '.csv', beginDate, endDate)
+					'Index_HistoData/MI_5MINS_HIST{0}{1:0>2d}'.format(year - 1911, month) + '.csv', beginDate, endDate)
 		return data
 
 

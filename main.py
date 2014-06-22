@@ -1,6 +1,5 @@
 import matplotlib.pyplot as plt
 from RawDataProcessing import *
-from BackTesting import *
 from matplotlib import pylab as pl
 import time
 
