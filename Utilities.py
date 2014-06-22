@@ -7,8 +7,9 @@ __author__ = 'chen hsueh-min'
 
 
 import datetime
-from RawDataProcessing import *
 import numpy as np
+from RawDataProcessing import *
+from scipy.stats.stats import pearsonr
 
 def str2date(dateStr):
 	return datetime.datetime.strptime(dateStr, '%Y/%m/%d').date()
@@ -37,3 +38,17 @@ def StrategyTesting(beginDate, endDate, strategy, optionData=None, stockData=Non
 
 def returnRate(data):
 	return np.diff(data) / map(float, data[:len(data)-1])
+
+def nCorelation(x, y, n=None, pValue=False):
+	if n is None:
+		if pValue:
+			return pearsonr(x, y)
+		else:
+			return pearsonr(x, y)[0]
+	else:
+		if pValue:
+			return [pearsonr(x[k-n:k], y[k-n:k])    for k in range(n,len(x)+1)]
+		else:
+			return [pearsonr(x[k-n:k], y[k-n:k])[0] for k in range(n,len(x)+1)]
+
+
