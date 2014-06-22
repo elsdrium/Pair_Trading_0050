@@ -1,25 +1,27 @@
+import matplotlib.pyplot as plt
 from RawDataProcessing import *
 from BackTesting import *
 from matplotlib import pylab as pl
 import time
 
-od = OptionDailyData()
-sd = StockDailyData()
+odd = OptionDailyData()
+sdd = StockDailyData()
 
 #result = od.getDataByDate('2001/01/01', '2001/12/26', Contract='TXO', Type='Call')
 
 
-m201212 = datetime.datetime.strptime( '201212', '%Y%m' ).date()
+m201202 = datetime.datetime.strptime( '201202', '%Y%m' ).date()
 
 #startTime = time.time()
-result = od.getDataByDate('2012/01/01', '2012/02/26', Contract='TXO', Type='Call', Strike=8000, Maturity=m201212)
+result = odd.getDataByDate('2012/01/01', '2012/02/26', Contract='TXO', Type='Call', Strike=8000, Maturity=m201202)
 #endTime = time.time()
 
 print len(result)
 #print endTime - startTime
 
-closeIdx = od.invKeys['Close']
+closeIdx = odd.invKeys['Close']
 pl.plot( range(len(result)), [ r[closeIdx] for r in result ] )
+plt.show()
 
 """
 from IPython.display import display
