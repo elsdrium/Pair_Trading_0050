@@ -138,6 +138,51 @@ class OptionDailyData(AbstractDailyData):
 	           'Close': 8, 'Volume': 9, 'Settlement': 10, 'OI': 11, 'LastBid': 12, 'LastOffer': 13, 'HisHigh': 14,
 	           'HisLow': 15}
 
+	def _toDate(self, dateStr):
+		return datetime.datetime.strptime(dateStr, '%Y-%m-%d').date()
+
+	def _processRow(self, row):
+		row[self.invKeys['Date']] = self._toDate(row[self.invKeys['Date']])
+		row[self.invKeys['Maturity']] = self._toDate(row[self.invKeys['Maturity']])
+
+		# except 'Contract', 'Date', 'Maturity', 'Type'
+		for key in (
+				'Strike', 'Open', 'High', 'Low', 'Close', 'Volume', 'Settlement', 'OI', 'LastBid', 'LastOffer', 'HisHigh',
+				'HisLow'):
+			row[self.invKeys[key]] = float(row[self.invKeys[key]])
+		return row
+
+	def _validateRow(self, row, **kwargs):
+		for key in list(kwargs.keys()):
+			if row[self.invKeys[key]] != kwargs[key]:
+				return False
+		return True
+
+	def _readDataFromCSV(self, filename, beginDate, endDate, **kwargs):
+		result = []
+		with open(filename, 'r') as handle:
+			reader = csv.reader(handle)
+			for row in reader:
+				row = self._processRow(row)
+				if self._validateRow(row, **kwargs) and row[self.invKeys['Date']] >= beginDate and row[
+					self.invKeys['Date']] <= endDate:
+					result.append(tuple(row))
+		return result
+
+	def getDataByDate(self, beginDate, endDate, **kwargs):
+		if isinstance(beginDate, str):
+			beginDate = self._toDate(beginDate.replace('/','-'))
+			endDate = self._toDate(endDate.replace('/','-'))
+
+		if beginDate > endDate:
+			return []
+
+		data = []
+		for year in range(beginDate.year, endDate.year + 1):
+			data += self._readDataFromCSV('Option_HistoData/TXO_' + str(year) + '.csv', beginDate, endDate, **kwargs)
+
+		return data
+
 
 class StockDailyData(AbstractDailyData):
 	Keys = ('Date', 'Volume', 'Amount', 'Open', 'High', 'Low', 'Close', 'Difference', 'NoOfTransactions')
