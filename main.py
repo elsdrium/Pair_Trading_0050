@@ -3,7 +3,8 @@ from RawDataProcessing import *
 from matplotlib import pylab as pl
 import time
 
-odd = OptionDailyData()
+odd = TXOptionDailyData()
+fdd = TXFuturesDailyData()
 sdd = StockDailyData()
 
 #result = od.getDataByDate('2001/01/01', '2001/12/26', Contract='TXO', Type='Call')
