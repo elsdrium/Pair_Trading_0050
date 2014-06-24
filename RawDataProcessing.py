@@ -10,6 +10,7 @@ import csv
 import datetime
 import copy
 import urllib
+import numpy as np
 from abc import ABCMeta, abstractmethod
 
 
@@ -96,7 +97,7 @@ class RawOptionDailyData(AbstractDailyData):
 				data += self._readDataFromCSV(
 					'Option_RawHistoData/' + str(year) + '_opt/' + str(year) + '_07_12_opt.csv',
 					beginDate, endDate, **kwargs)
-		return data
+		return np.array(data)
 
 	def saveAsCSV(self, data, filename):
 		with open(filename, 'wb') as f:
@@ -128,7 +129,7 @@ class RawOptionDailyData(AbstractDailyData):
 				row = self._processRow(row)
 				if self._validateRow(row, **kwargs):
 					result.append(tuple(row))
-		return result
+		return np.array(result)
 
 
 # we will consider TXO only
@@ -177,13 +178,13 @@ class TXOptionDailyData(AbstractDailyData):
 			endDate = self._toDate(endDate.replace('/', '-'))
 
 		if beginDate > endDate:
-			return []
+			return np.array([])
 
 		data = []
 		for year in range(beginDate.year, endDate.year + 1):
 			data += self._readDataFromCSV('Option_HistoData/TXO_' + str(year) + '.csv', beginDate, endDate, **kwargs)
 
-		return data
+		return np.array(data)
 
 
 class StockDailyData(AbstractDailyData):
@@ -242,7 +243,7 @@ class StockDailyData(AbstractDailyData):
 			endDate = self._toDate(endDate)
 
 		if beginDate > endDate:
-			return []
+			return np.array([])
 
 		data = []
 		for year in range(beginDate.year, endDate.year + 1):
@@ -254,7 +255,7 @@ class StockDailyData(AbstractDailyData):
 				data += self._readDataFromCSV(
 					'Stock_HistoData/stock_' + kwargs['stockNumber'] + '_' + datetime.date(year, month, 1).strftime(
 						'%Y%m') + '.csv', beginDate, endDate, **kwargs)
-		return data
+		return np.array(data)
 
 	def saveAsCSV(self, data, filename):
 		with open(filename, 'wb') as f:
@@ -282,7 +283,7 @@ class StockDailyData(AbstractDailyData):
 				row = self._processRow(row)
 				if self._validateRow(row, **kwargs):
 					result.append(tuple(row))
-		return result
+		return np.array(result)
 
 	def downloadAllCSVData(self, stockNumber='2330', beginYYYYMM='201401'):
 		"""Download stock data by number and date."""
@@ -347,7 +348,7 @@ class IndexDailyData(AbstractDailyData):
 			endDate = self._toDate(endDate)
 
 		if beginDate > endDate:
-			return []
+			return np.array([])
 
 		data = []
 		for year in range(beginDate.year, endDate.year + 1):
@@ -358,7 +359,7 @@ class IndexDailyData(AbstractDailyData):
 					continue
 				data += self._readDataFromCSV(
 					'Index_HistoData/MI_5MINS_HIST{0}{1:0>2d}'.format(year - 1911, month) + '.csv', beginDate, endDate)
-		return data
+		return np.array(data)
 
 
 class RawFuturesDailyData(AbstractDailyData):
@@ -414,7 +415,7 @@ class RawFuturesDailyData(AbstractDailyData):
 			                              beginDate, endDate, **kwargs)
 			data += self._readDataFromCSV('Futures_RawHistoData/' + str(year) + '_fut/' + str(year) + '_07_12_fut.csv',
 			                              beginDate, endDate, **kwargs)
-		return data
+		return np.array(data)
 
 	# Due to the error of raw data, remember add a space ' ' onto the end of Contract
 	def refineAllRawData(self, **kwargs):
@@ -449,9 +450,12 @@ class TXFuturesDailyData(AbstractDailyData):
 		return True
 
 	def __init__(self):
-		self.data = self.loadCSV()
+		self.data = self._loadCSV()
 
-	def loadCSV(self):
+	def getData(self):
+		return np.array(self.data)
+
+	def _loadCSV(self):
 		result = []
 		with open('Futures_HistoData/TX.csv', 'r') as f:
 			reader = csv.reader(f)
@@ -461,13 +465,18 @@ class TXFuturesDailyData(AbstractDailyData):
 		return result
 
 	def getDataByDate(self, beginDate, endDate, near=False):
+		if isinstance(beginDate, str):
+			beginDate = self._toDate(beginDate)
+		if isinstance(endDate, str):
+			endDate = self._toDate(endDate)
+
 		if near:
-			return [self.data[i] for i in range(len(self.data)) if
+			return np.array([self.data[i] for i in range(len(self.data)) if
 			        self.data[i][self.invKeys['Date']] >= beginDate and self.data[i][
 				        self.invKeys['Date']] <= endDate and (
-			        i == 0 or self.data[i][self.invKeys['Date']] > self.data[i - 1][self.invKeys['Date']])]
+			        i == 0 or self.data[i][self.invKeys['Date']] > self.data[i - 1][self.invKeys['Date']])])
 		else:
-			return [r for r in self.data if r[self.invKeys['Date']] >= beginDate and r[self.invKeys['Date']] <= endDate]
+			return np.array([r for r in self.data if r[self.invKeys['Date']] >= beginDate and r[self.invKeys['Date']] <= endDate])
 
 
 if __name__ == '__main__':
