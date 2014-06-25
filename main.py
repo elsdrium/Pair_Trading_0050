@@ -7,7 +7,7 @@ import numpy as np
 
 ############################## Constants ##############################
 beginDate = str2date('2003/07/01')
-endDate = str2date('2003/10/31')
+endDate = str2date('2013/07/31')
 maturity = str2date('2012/08/01')
 
 kwargs = {
@@ -16,7 +16,7 @@ kwargs = {
 	# 'Maturity': maturity,
 }
 
-outOfMoney = 100
+outOfMoney = 0
 
 stockTransCost = 0.2
 futuresTransCost = 0
@@ -70,7 +70,7 @@ except NameError:
 # end of try-except scope
 
 ########################### Testing Strategy ##########################
-opdata = []
+
 def selectOptionPrice():
 	optionMaturityIdx  = odd.invKeys['Maturity']
 	optionStrikeIdx    = odd.invKeys['Strike']
@@ -79,25 +79,46 @@ def selectOptionPrice():
 	futuresDateIdx     = fdd.invKeys['Date']
 
 	result = []
-	i = 0
-	for f in futures_data:
-		while i != len(option_data):
-			if option_data[i][optionDateIdx] < f[futuresDateIdx]:
-				i += 1
+	j = 0
+	for i in range(len(futures_data)):
+		maturity = futures_data[i][futuresMaturityIdx]
+		todayMaturity = False
+		if i + 1 < len(indexPrice) and futures_data[i + 1][futuresMaturityIdx] != futures_data[i][futuresMaturityIdx]:
+			todayMaturity = True
+
+		currentStrike = None
+		while j != len(option_data):
+			if option_data[j][optionDateIdx] < futures_data[i][futuresDateIdx]:
+				j += 1
 				continue
 
-			if option_data[i][optionMaturityIdx] == f[futuresMaturityIdx] and option_data[i][optionStrikeIdx] - f[futuresCloseIdx] >= outOfMoney:
-				result.append( option_data[i][optionCloseIdx] )
-				opdata.append( option_data[i] )
-				i += 1
-				break
+			if option_data[j][optionMaturityIdx] != maturity:
+				j += 1
+				continue
+
+			if currentStrike is None:
+				if option_data[j][optionStrikeIdx] > (futures_data[i][futuresCloseIdx] + outOfMoney):
+					currentStrike = option_data[j][optionStrikeIdx]
+					result.append( option_data[j] )
+					j += 1
+					break
+				else:
+					j += 1
+					continue
 			else:
-				i += 1
+				result.append( option_data[j] )
+				if todayMaturity:
+					currentStrike = None
+				j += 1
+				break
+
 
 	return result
 
 
-optionPrice = selectOptionPrice()
+selectedOptionData = selectOptionPrice()
+optionPrice = [ data[optionCloseIdx] for data in selectedOptionData ]
+#optionPrice = indexPrice
 
 positionLimit = {'0050': 50,
                  'TXO': 50,
@@ -149,6 +170,9 @@ for i in range(len(indexPrice)):
 		pendingToTrade['TXO'] = -portfolio['TXO']
 		pendingToTrade['TX']  = -portfolio['TX']
 
+		priceDifference['TXO'][i+1] = 0
+		priceDifference['TX'][i+1]  = 0
+
 	### validate transaction
 	for item in pendingToTrade:
 		if pendingToTrade[item] > 0 and portfolio[item] >= positionLimit[item]:
@@ -161,10 +185,10 @@ for i in range(len(indexPrice)):
 	transactionLog[dateSequence[i]] = {}
 	for item in pendingToTrade:
 		if pendingToTrade[item] != 0:
-			print( str(dateSequence[i]) + ' : ' + item + ' ' + str(pendingToTrade[item]) )
+			'''print( str(dateSequence[i]) + ' : ' + item + ' ' + str(pendingToTrade[item]) )
 			print( '     Price : ' + str(optionPrice[i]) )
-			print( '     Data  : ' + str(opdata[i]) )
-			print( '  Futures  : ' + str(futuresPrice[i]) )
+			print( '     Data  : ' + str(selectedOptionData[i]) )
+			print( '  Futures  : ' + str(futuresPrice[i]) )'''
 			portfolio[item] += pendingToTrade[item]
 			PL[-1] -= (TransactionCost[item] * np.abs(pendingToTrade[item]))
 			transactionLog[dateSequence[i]][item] = pendingToTrade[item]
