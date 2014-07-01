@@ -19,8 +19,8 @@ kwargs = {
 outOfMoney = 0
 
 stockTransCost = 0.2
-futuresTransCost = 0
-optionTransCost = 0.8
+futuresTransCost = 10
+optionTransCost = 1
 
 ############################# Loading Data ############################
 try:
@@ -80,13 +80,13 @@ def selectOptionPrice():
 
 	result = []
 	j = 0
+	currentStrike = None
 	for i in range(len(futures_data)):
 		maturity = futures_data[i][futuresMaturityIdx]
 		todayMaturity = False
 		if i + 1 < len(indexPrice) and futures_data[i + 1][futuresMaturityIdx] != futures_data[i][futuresMaturityIdx]:
 			todayMaturity = True
 
-		currentStrike = None
 		while j != len(option_data):
 			if option_data[j][optionDateIdx] < futures_data[i][futuresDateIdx]:
 				j += 1
@@ -105,6 +105,9 @@ def selectOptionPrice():
 				else:
 					j += 1
 					continue
+			elif currentStrike != option_data[j][optionStrikeIdx]:
+				j += 1
+				continue
 			else:
 				result.append( option_data[j] )
 				if todayMaturity:
@@ -121,7 +124,7 @@ optionPrice = [ data[optionCloseIdx] for data in selectedOptionData ]
 #optionPrice = indexPrice
 
 positionLimit = {'0050': 50,
-                 'TXO': 50,
+                 'TXO': 500,
                  'TX': 50,
 }
 TransactionCost = {'0050': stockTransCost,
@@ -139,10 +142,13 @@ priceDifference = {'0050': np.append([0], np.diff(stockPrice)),
 transactionLog = {}
 PL = [0]
 
+constant = 0.05
+slow, fast, macd = movingAverageConvergence(stockPrice)
+#randomNumber = np.round(np.random.lognormal() * 10)
+flag = False
 
-# slow, fast, macd = movingAverageConvergence(stockPrice)
-randomNumber = np.round(np.random.lognormal() * 100)
-
+#cnt = 0
+#currentInit = 0
 for i in range(len(indexPrice)):
 
 	### check maturity
@@ -157,13 +163,16 @@ for i in range(len(indexPrice)):
 		PL[-1] += (priceDifference[item][i] * portfolio[item])
 
 	### check trading signals
-	if i == randomNumber:
-		#pendingToTrade['0050'] += 5000
-		pendingToTrade['TXO'] -= 50
+	if flag or todayMaturity:
+		if not flag:
+			flag = True
+			pendingToTrade['0050'] += 10000
 
-	if i >= randomNumber:
-		if portfolio['TXO'] == 0:
+		if (-macd[i]) > constant*fast[i]:
 			pendingToTrade['TXO'] -= 50
+
+	else:
+		continue
 
 	### check futures / option matures
 	if todayMaturity:
@@ -186,9 +195,18 @@ for i in range(len(indexPrice)):
 	for item in pendingToTrade:
 		if pendingToTrade[item] != 0:
 			'''print( str(dateSequence[i]) + ' : ' + item + ' ' + str(pendingToTrade[item]) )
-			print( '     Price : ' + str(optionPrice[i]) )
-			print( '     Data  : ' + str(selectedOptionData[i]) )
-			print( '  Futures  : ' + str(futuresPrice[i]) )'''
+			print( 'Op Price   : ' + str(optionPrice[i]) )
+			print( 'Op Strike  : ' + str(selectedOptionData[i][odd.invKeys['Strike']]) )
+			print( 'F  Price   : ' + str(futuresPrice[i]) )
+			print( 'F  Maturity: ' + str(futures_data[i][fdd.invKeys['Maturity']]) )
+			print( 'Op Maturity: ' + str(selectedOptionData[i][odd.invKeys['Maturity']]) )'''
+			'''if pendingToTrade[item] > 0:
+				cnt += index_data[i][idd.invKeys['Close']] - currentInit
+			else:
+				currentInit = selectedOptionData[i][odd.invKeys['Close']]
+			if index_data[i][idd.invKeys['Close']] >= selectedOptionData[i][odd.invKeys['Strike']] +50:
+				print index_data[i][idd.invKeys['Close']] , selectedOptionData[i][odd.invKeys['Strike']]'''
+
 			portfolio[item] += pendingToTrade[item]
 			PL[-1] -= (TransactionCost[item] * np.abs(pendingToTrade[item]))
 			transactionLog[dateSequence[i]][item] = pendingToTrade[item]
