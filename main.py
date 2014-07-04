@@ -7,7 +7,7 @@ import numpy as np
 
 ############################## Constants ##############################
 beginDate = str2date('2003/07/01')
-endDate = str2date('2013/07/31')
+endDate = str2date('2013/12/31')
 maturity = str2date('2012/08/01')
 
 kwargs = {
@@ -16,11 +16,11 @@ kwargs = {
 	# 'Maturity': maturity,
 }
 
-outOfMoney = 0
+outOfMoney = -0
 
-stockTransCost = 0.2
-futuresTransCost = 10
-optionTransCost = 1
+stockTransCost = 1
+futuresTransCost = 3
+optionTransCost = 2
 
 ############################# Loading Data ############################
 try:
@@ -66,6 +66,9 @@ except NameError:
 	stockReturn = returnRate(stockPrice)
 	indexReturn = returnRate(indexPrice)
 	futuresReturn = returnRate(futuresPrice)
+
+dividend0050 = {475: 1.85, 832: 4.0, 1077: 2.5, 1328: 2.0, 1578: 1.0, 1828: 2.2, 2076: 1.95, 2325: 1.85, 2571: 1.35}
+
 
 # end of try-except scope
 
@@ -123,9 +126,9 @@ selectedOptionData = selectOptionPrice()
 optionPrice = [ data[optionCloseIdx] for data in selectedOptionData ]
 #optionPrice = indexPrice
 
-positionLimit = {'0050': 50,
-                 'TXO': 500,
-                 'TX': 50,
+positionLimit = {'0050': 1000*10,
+                 'TXO': 50*10,
+                 'TX': 50*1,
 }
 TransactionCost = {'0050': stockTransCost,
                    'TXO': optionTransCost,
@@ -162,6 +165,9 @@ for i in range(len(indexPrice)):
 	for item in portfolio:
 		PL[-1] += (priceDifference[item][i] * portfolio[item])
 
+	if dividend0050.has_key( len(PL)-2 ):
+		PL[-1] += dividend0050[len(PL)-2]*portfolio['0050']
+
 	### check trading signals
 	if flag or todayMaturity:
 		if not flag:
@@ -169,7 +175,7 @@ for i in range(len(indexPrice)):
 			pendingToTrade['0050'] += 10000
 
 		if (-macd[i]) > constant*fast[i]:
-			pendingToTrade['TXO'] -= 50
+			pendingToTrade['TXO'] -= 50*1
 
 	else:
 		continue
