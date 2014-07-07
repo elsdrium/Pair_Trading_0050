@@ -2,25 +2,29 @@ from Utilities import *
 from RawDataProcessing import *
 from matplotlib import pylab as pl
 from matplotlib import dates
+from scipy import stats
 import datetime
 import numpy as np
 
-############################## Constants ##############################
-beginDate = str2date('2003/07/01')
+# ############################# Constants ##############################
+beginDate = str2date('2004/4/01')
 endDate = str2date('2013/12/31')
-maturity = str2date('2012/08/01')
+initCapital = 10**6
 
 kwargs = {
-	'Type': 'Call',
-	# 'Strike': 8000,
-	# 'Maturity': maturity,
+'Type': 'Call',  # 'Strike': 8000,  # 'Maturity': maturity,
 }
 
-outOfMoney = -0
+moneyness = -0
 
-stockTransCost = 1
-futuresTransCost = 3
-optionTransCost = 2
+stockTransCost = 1000
+futuresTransCost = 150
+optionTransCost = 100
+
+UNIT = {'0050': 1000,
+        'TXO': 50,
+        'TX': 50,
+}
 
 ############################# Loading Data ############################
 try:
@@ -74,17 +78,23 @@ dividend0050 = {475: 1.85, 832: 4.0, 1077: 2.5, 1328: 2.0, 1578: 1.0, 1828: 2.2,
 
 ########################### Testing Strategy ##########################
 
-def selectOptionPrice():
-	optionMaturityIdx  = odd.invKeys['Maturity']
-	optionStrikeIdx    = odd.invKeys['Strike']
-	optionDateIdx      = odd.invKeys['Date']
-	futuresMaturityIdx = fdd.invKeys['Maturity']
-	futuresDateIdx     = fdd.invKeys['Date']
+optionMaturityIdx = odd.invKeys['Maturity']
+optionStrikeIdx = odd.invKeys['Strike']
+optionDateIdx = odd.invKeys['Date']
+futuresMaturityIdx = fdd.invKeys['Maturity']
+futuresDateIdx = fdd.invKeys['Date']
 
+beginDateIndex = 0
+while beginDateIndex < len(futures_data) and futures_data[beginDateIndex][futuresDateIdx] < beginDate:
+	beginDateIndex += 1
+
+
+def selectOptionData(outOfMoney=0):
 	result = []
-	j = 0
 	currentStrike = None
-	for i in range(len(futures_data)):
+	j = 0
+
+	for i in range(beginDateIndex, len(futures_data)):
 		maturity = futures_data[i][futuresMaturityIdx]
 		todayMaturity = False
 		if i + 1 < len(indexPrice) and futures_data[i + 1][futuresMaturityIdx] != futures_data[i][futuresMaturityIdx]:
@@ -102,7 +112,7 @@ def selectOptionPrice():
 			if currentStrike is None:
 				if option_data[j][optionStrikeIdx] > (futures_data[i][futuresCloseIdx] + outOfMoney):
 					currentStrike = option_data[j][optionStrikeIdx]
-					result.append( option_data[j] )
+					result.append(option_data[j])
 					j += 1
 					break
 				else:
@@ -112,47 +122,54 @@ def selectOptionPrice():
 				j += 1
 				continue
 			else:
-				result.append( option_data[j] )
+				result.append(option_data[j])
 				if todayMaturity:
 					currentStrike = None
 				j += 1
 				break
 
-
 	return result
 
 
-selectedOptionData = selectOptionPrice()
-optionPrice = [ data[optionCloseIdx] for data in selectedOptionData ]
-#optionPrice = indexPrice
+selectedOptionData = selectOptionData(0)
+optionPrice = [data[optionCloseIdx] for data in selectedOptionData]
 
-positionLimit = {'0050': 1000*10,
-                 'TXO': 50*10,
-                 'TX': 50*1,
+selectedSellOptionData = selectOptionData(300)
+sellOptionPrice = [data[optionCloseIdx] for data in selectedSellOptionData]
+
+positionLimit = {'0050': 10,
+                 'TXO': 10,
+                 'TX': 10,
 }
 TransactionCost = {'0050': stockTransCost,
                    'TXO': optionTransCost,
-                   'TX': futuresTransCost,
+                   'TX':  optionTransCost,
 }
 
-portfolio      = {'0050': 0, 'TXO': 0, 'TX': 0}
+portfolio = {'0050': 0, 'TXO': 0, 'TX': 0}
 pendingToTrade = {'0050': 0, 'TXO': 0, 'TX': 0}
 priceDifference = {'0050': np.append([0], np.diff(stockPrice)),
-                   'TXO': np.append([0], np.diff(optionPrice)),
-                   'TX': np.append([0], np.diff(futuresPrice)),
+                   'TXO': np.append([0] * (beginDateIndex + 1), np.diff(optionPrice)),
+                   'TX' : np.append([0] * (beginDateIndex + 1), np.diff(sellOptionPrice)),
 }
 
 transactionLog = {}
 PL = [0]
+monthlyPL = [(beginDate, 0)]
 
-constant = 0.05
-slow, fast, macd = movingAverageConvergence(stockPrice)
-#randomNumber = np.round(np.random.lognormal() * 10)
-flag = False
+constant = 0.075
+slow, fast, macd = movingAverageConvergence(indexPrice)
+signal = movingAverage(macd, 9, type='exponential')
+convergence = macd - signal
+
+initFlag  = bool(1)
+shortFlag = bool(0)
+hedgeFlag = bool(1)
+sellOptionFlag = bool(1)
 
 #cnt = 0
 #currentInit = 0
-for i in range(len(indexPrice)):
+for i in range(beginDateIndex, len(indexPrice)):
 
 	### check maturity
 	todayMaturity = False
@@ -163,30 +180,63 @@ for i in range(len(indexPrice)):
 	### update profit & loss
 	PL.append(PL[-1])
 	for item in portfolio:
-		PL[-1] += (priceDifference[item][i] * portfolio[item])
+		PL[-1] += (priceDifference[item][i] * portfolio[item] * UNIT[item])
 
-	if dividend0050.has_key( len(PL)-2 ):
-		PL[-1] += dividend0050[len(PL)-2]*portfolio['0050']
+	if dividend0050.has_key(len(PL) - 2):
+		PL[-1] += dividend0050[len(PL) - 2] * portfolio['0050'] * UNIT['0050']
 
-	### check trading signals
-	if flag or todayMaturity:
-		if not flag:
-			flag = True
-			pendingToTrade['0050'] += 10000
+	################## check trading signals ###############################
 
+	# initial position
+	if initFlag:
+		initFlag = False
+		pendingToTrade['0050'] += 10
+
+	# 2 strategies
+	if hedgeFlag:
 		if (-macd[i]) > constant*fast[i]:
-			pendingToTrade['TXO'] -= 50*1
-
+			pendingToTrade['TXO'] -= 10
 	else:
-		continue
+		if (-macd[i]) > constant*fast[i]:
+			pendingToTrade['TXO'] -= 10
+			pendingToTrade['TX'] -= portfolio['TX']
+			sellOptionFlag = False
+
+		sellAmount = 5
+		if not sellOptionFlag:
+			pendingToTrade['TX'] -= sellAmount
+			sellOptionFlag = True
+
+		if todayMaturity and sellOptionFlag:
+			sellOptionFlag = False
+
+		# stopping loss
+		if macd[i] > constant*fast[i]:
+			pendingToTrade['TXO'] = -portfolio['TXO']
+			pendingToTrade['TX']  = -portfolio['TX']
+
+
+#	if i > 0 and macd[i-1] < 0 and convergence[i - 1] > 0 and convergence[i] < 0:
+#		pendingToTrade['TXO'] -= shortAmount
+#		shortFlag = True
+#
+#	if i > 0 and macd[i-1] > 0 and convergence[i - 1] < 0 and convergence[i] > 0:
+#		pendingToTrade['TXO'] -= shortAmount
+#		shortFlag = True
+
+#	if i > 0 and convergence[i - 1] < 0 and convergence[i] > 0:
+#		pendingToTrade['TXO'] -= portfolio['TXO']
+#		shortFlag = False
+
+	########################################################################
 
 	### check futures / option matures
 	if todayMaturity:
 		pendingToTrade['TXO'] = -portfolio['TXO']
-		pendingToTrade['TX']  = -portfolio['TX']
+		pendingToTrade['TX'] = -portfolio['TX']
 
-		priceDifference['TXO'][i+1] = 0
-		priceDifference['TX'][i+1]  = 0
+		priceDifference['TXO'][i + 1] = 0
+		priceDifference['TX'][i + 1] = 0
 
 	### validate transaction
 	for item in pendingToTrade:
@@ -200,26 +250,34 @@ for i in range(len(indexPrice)):
 	transactionLog[dateSequence[i]] = {}
 	for item in pendingToTrade:
 		if pendingToTrade[item] != 0:
-			'''print( str(dateSequence[i]) + ' : ' + item + ' ' + str(pendingToTrade[item]) )
-			print( 'Op Price   : ' + str(optionPrice[i]) )
-			print( 'Op Strike  : ' + str(selectedOptionData[i][odd.invKeys['Strike']]) )
-			print( 'F  Price   : ' + str(futuresPrice[i]) )
-			print( 'F  Maturity: ' + str(futures_data[i][fdd.invKeys['Maturity']]) )
-			print( 'Op Maturity: ' + str(selectedOptionData[i][odd.invKeys['Maturity']]) )'''
-			'''if pendingToTrade[item] > 0:
-				cnt += index_data[i][idd.invKeys['Close']] - currentInit
-			else:
-				currentInit = selectedOptionData[i][odd.invKeys['Close']]
-			if index_data[i][idd.invKeys['Close']] >= selectedOptionData[i][odd.invKeys['Strike']] +50:
-				print index_data[i][idd.invKeys['Close']] , selectedOptionData[i][odd.invKeys['Strike']]'''
-
 			portfolio[item] += pendingToTrade[item]
 			PL[-1] -= (TransactionCost[item] * np.abs(pendingToTrade[item]))
 			transactionLog[dateSequence[i]][item] = pendingToTrade[item]
 			pendingToTrade[item] = 0
 
+	### for performance estimation
+	if todayMaturity:
+		monthlyPL.append( (futures_data[i][futuresDateIdx], PL[-1]) )
+
 PL = PL[1:]
 
 
 ########################## Generating Graphs ##########################
-pl.plot(dateSequence, PL)
+pl.plot( dateSequence[beginDateIndex:], PL )
+
+
+returnRate = 100 * PL[-1] / initCapital
+periodYears = (len(dateSequence)-beginDateIndex) / 248.0
+
+if hedgeFlag:
+	print( 'Strategy : Hedging' )
+else:
+	print( 'Strategy : Aggressive Selling' )
+
+print( 'Period : {:.2f} years'.format(periodYears) )
+print( 'Trading Times : {}'.format(len([log for log in transactionLog if len(transactionLog[log]) != 0])) )
+print( 'Max P&L :   {:.0f}'.format(max(PL)) )
+print( 'Min P&L :  {:.0f}'.format(min(PL)) )
+print( 'Final P&L : {:.0f}'.format(PL[-1]) )
+print( 'Ttl Return : {:.3f}%'.format( returnRate ) )
+print( 'Avg Return : {:.3f}%'.format( returnRate / periodYears ) )
