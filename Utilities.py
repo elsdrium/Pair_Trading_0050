@@ -19,7 +19,7 @@ def returnRate(data):
 	return np.diff(data) / map(float, data[:len(data) - 1])
 
 
-def nCorelation(x, y, n=None, pValue=False):
+def nCorrelation(x, y, n=None, pValue=False):
 	if n is None:
 		if pValue:
 			return pearsonr(x, y)
