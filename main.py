@@ -1,18 +1,17 @@
 from Utilities import *
 from RawDataProcessing import *
-from matplotlib import pylab as pl
 from matplotlib import dates
 from scipy import stats
 import datetime
 import numpy as np
 
 # ############################# Constants ##############################
-beginDate = str2date('2004/4/01')
+beginDate = str2date('2003/07/01')
 endDate = str2date('2013/12/31')
-initCapital = 10**6
+initCapital = 10 ** 6
 
 kwargs = {
-'Type': 'Call',  # 'Strike': 8000,  # 'Maturity': maturity,
+	'Type': 'Call',  # 'Strike': 8000,  # 'Maturity': maturity,
 }
 
 moneyness = -0
@@ -26,7 +25,7 @@ UNIT = {'0050': 1000,
         'TX': 50,
 }
 
-############################# Loading Data ############################
+# ############################ Loading Data ############################
 try:
 	# no needs to reload data every time
 	len(option_data)
@@ -65,7 +64,7 @@ except NameError:
 	stockPrice = np.array([r[stockCloseIdx] for r in stock_data])
 	indexPrice = np.array([r[indexCloseIdx] for r in index_data])
 	futuresPrice = np.array([r[futuresCloseIdx] for r in futures_data])
-	#optionPrice = np.array([r[optionCloseIdx] for r in option_data])
+	# optionPrice = np.array([r[optionCloseIdx] for r in option_data])
 
 	stockReturn = returnRate(stockPrice)
 	indexReturn = returnRate(indexPrice)
@@ -76,7 +75,7 @@ dividend0050 = {475: 1.85, 832: 4.0, 1077: 2.5, 1328: 2.0, 1578: 1.0, 1828: 2.2,
 
 # end of try-except scope
 
-########################### Testing Strategy ##########################
+# ########################## Testing Strategy ##########################
 
 optionMaturityIdx = odd.invKeys['Maturity']
 optionStrikeIdx = odd.invKeys['Strike']
@@ -134,150 +133,206 @@ def selectOptionData(outOfMoney=0):
 selectedOptionData = selectOptionData(0)
 optionPrice = [data[optionCloseIdx] for data in selectedOptionData]
 
-selectedSellOptionData = selectOptionData(300)
+selectedSellOptionData = selectOptionData(-100)
 sellOptionPrice = [data[optionCloseIdx] for data in selectedSellOptionData]
 
-positionLimit = {'0050': 10,
-                 'TXO': 10,
-                 'TX': 10,
-}
-TransactionCost = {'0050': stockTransCost,
-                   'TXO': optionTransCost,
-                   'TX':  optionTransCost,
-}
+#plresult = []
 
-portfolio = {'0050': 0, 'TXO': 0, 'TX': 0}
-pendingToTrade = {'0050': 0, 'TXO': 0, 'TX': 0}
-priceDifference = {'0050': np.append([0], np.diff(stockPrice)),
-                   'TXO': np.append([0] * (beginDateIndex + 1), np.diff(optionPrice)),
-                   'TX' : np.append([0] * (beginDateIndex + 1), np.diff(sellOptionPrice)),
-}
+proportion = 0.5
+arg = [0.05]
+for R in arg:
+	positionLimit = {'0050': 10,
+	                 'TXO': 10,
+	                 'TX': 1000,
+	}
+	TransactionCost = {'0050': stockTransCost,
+	                   'TXO': optionTransCost,
+	                   'TX': optionTransCost,
+	}
 
-transactionLog = {}
-PL = [0]
-monthlyPL = [(beginDate, 0)]
+	portfolio = {'0050': 0, 'TXO': 0, 'TX': 0}
+	pendingToTrade = {'0050': 0, 'TXO': 0, 'TX': 0}
+	priceDifference = {'0050': np.append([0], np.diff(stockPrice)),
+	                   'TXO': np.append([0] * (beginDateIndex + 1), np.diff(optionPrice)),
+	                   'TX': np.append([0] * (beginDateIndex + 1), np.diff(sellOptionPrice)),
+	}
 
-constant = 0.075
-slow, fast, macd = movingAverageConvergence(indexPrice)
-signal = movingAverage(macd, 9, type='exponential')
-convergence = macd - signal
+	transactionLog = {}
+	PL = [0]
+	monthlyPL = [(beginDate, 0)]
 
-initFlag  = bool(1)
-shortFlag = bool(0)
-hedgeFlag = bool(1)
-sellOptionFlag = bool(1)
+	#R = 0.05
+	slow, fast, macd = movingAverageConvergence(indexPrice)
+	signal = movingAverage(macd, 9, type='exponential')
+	convergence = macd - signal
 
-#cnt = 0
-#currentInit = 0
-for i in range(beginDateIndex, len(indexPrice)):
+	hedgeFlag = bool(0)
+	initFlag = bool(1)
+	shortFlag = bool(0)
+	sellOptionFlag = bool(1)
 
-	### check maturity
-	todayMaturity = False
-	if i + 1 < len(indexPrice) and futures_data[i + 1][fdd.invKeys['Maturity']] != futures_data[i][
-		fdd.invKeys['Maturity']]:
-		todayMaturity = True
 
-	### update profit & loss
-	PL.append(PL[-1])
-	for item in portfolio:
-		PL[-1] += (priceDifference[item][i] * portfolio[item] * UNIT[item])
+	for i in range(beginDateIndex, len(indexPrice)):
 
-	if dividend0050.has_key(len(PL) - 2):
-		PL[-1] += dividend0050[len(PL) - 2] * portfolio['0050'] * UNIT['0050']
+		# ## check maturity
+		todayMaturity = False
+		if i + 1 < len(indexPrice) and futures_data[i + 1][fdd.invKeys['Maturity']] != futures_data[i][
+			fdd.invKeys['Maturity']]:
+			todayMaturity = True
 
-	################## check trading signals ###############################
+		### update profit & loss
+		PL.append(PL[-1])
+		for item in portfolio:
+			PL[-1] += (priceDifference[item][i] * portfolio[item] * UNIT[item])
 
-	# initial position
-	if initFlag:
-		initFlag = False
-		pendingToTrade['0050'] += 10
+		if dividend0050.has_key(len(PL) - 2):
+			PL[-1] += dividend0050[len(PL) - 2] * portfolio['0050'] * UNIT['0050']
 
-	# 2 strategies
-	if hedgeFlag:
-		if (-macd[i]) > constant*fast[i]:
-			pendingToTrade['TXO'] -= 10
-	else:
-		if (-macd[i]) > constant*fast[i]:
-			pendingToTrade['TXO'] -= 10
-			pendingToTrade['TX'] -= portfolio['TX']
-			sellOptionFlag = False
+		################## check trading signals ###############################
 
-		sellAmount = 5
-		if not sellOptionFlag:
-			pendingToTrade['TX'] -= sellAmount
-			sellOptionFlag = True
+		# initial position
+		if initFlag:
+			initFlag = False
+			pendingToTrade['0050'] += 10
 
-		if todayMaturity and sellOptionFlag:
-			sellOptionFlag = False
+		# 2 strategies
+		if hedgeFlag:
+			if (-macd[i]) > R * fast[i]:
+				pendingToTrade['TXO'] -= 10
+		else:
+			if (-macd[i]) > R * fast[i]:
+				pendingToTrade['TXO'] -= 10
+#				pendingToTrade['TX'] -= portfolio['TX']
+#				sellOptionFlag = False
 
-		# stopping loss
-		if macd[i] > constant*fast[i]:
+			sellAmount = 1
+
+			if (-macd[i]) > proportion * R * fast[i]:
+				pendingToTrade['TX'] -= sellAmount
+#				sellOptionFlag = True
+
+#			if todayMaturity and sellOptionFlag:
+#				sellOptionFlag = False
+
+			# stopping loss
+#			if macd[i] > 0:
+#				pendingToTrade['TX'] = -portfolio['TX']
+#				pendingToTrade['TXO'] = -portfolio['TXO']
+
+
+			#	if i > 0 and macd[i-1] < 0 and convergence[i - 1] > 0 and convergence[i] < 0:
+			#		pendingToTrade['TXO'] -= shortAmount
+			#		shortFlag = True
+			#
+			#	if i > 0 and macd[i-1] > 0 and convergence[i - 1] < 0 and convergence[i] > 0:
+			#		pendingToTrade['TXO'] -= shortAmount
+			#		shortFlag = True
+
+			#	if i > 0 and convergence[i - 1] < 0 and convergence[i] > 0:
+			#		pendingToTrade['TXO'] -= portfolio['TXO']
+			#		shortFlag = False
+
+		########################################################################
+
+		### check futures / option matures
+		if todayMaturity:
 			pendingToTrade['TXO'] = -portfolio['TXO']
-			pendingToTrade['TX']  = -portfolio['TX']
+			pendingToTrade['TX'] = -portfolio['TX']
 
+			priceDifference['TXO'][i + 1] = 0
+			priceDifference['TX'][i + 1] = 0
 
-#	if i > 0 and macd[i-1] < 0 and convergence[i - 1] > 0 and convergence[i] < 0:
-#		pendingToTrade['TXO'] -= shortAmount
-#		shortFlag = True
-#
-#	if i > 0 and macd[i-1] > 0 and convergence[i - 1] < 0 and convergence[i] > 0:
-#		pendingToTrade['TXO'] -= shortAmount
-#		shortFlag = True
+		### validate transaction
+		for item in pendingToTrade:
+			if pendingToTrade[item] > 0 and portfolio[item] >= positionLimit[item]:
+				pendingToTrade[item] = 0
 
-#	if i > 0 and convergence[i - 1] < 0 and convergence[i] > 0:
-#		pendingToTrade['TXO'] -= portfolio['TXO']
-#		shortFlag = False
+			if pendingToTrade[item] < 0 and -portfolio[item] >= positionLimit[item]:
+				pendingToTrade[item] = 0
 
-	########################################################################
+		### execute transaction
+		transactionLog[dateSequence[i]] = {}
+		for item in pendingToTrade:
+			if pendingToTrade[item] != 0:
+				portfolio[item] += pendingToTrade[item]
+				PL[-1] -= (TransactionCost[item] * np.abs(pendingToTrade[item]))
+				transactionLog[dateSequence[i]][item] = pendingToTrade[item]
+				pendingToTrade[item] = 0
 
-	### check futures / option matures
-	if todayMaturity:
-		pendingToTrade['TXO'] = -portfolio['TXO']
-		pendingToTrade['TX'] = -portfolio['TX']
+		### for performance estimation
+		if todayMaturity:
+			monthlyPL.append((futures_data[i][futuresDateIdx], PL[-1]))
 
-		priceDifference['TXO'][i + 1] = 0
-		priceDifference['TX'][i + 1] = 0
+#	print constant
+#	plt.plot(dateSequence[beginDateIndex:], PL[1:])
+#	plt.show()
+#	plresult.append(PL[-1])
 
-	### validate transaction
-	for item in pendingToTrade:
-		if pendingToTrade[item] > 0 and portfolio[item] >= positionLimit[item]:
-			pendingToTrade[item] = 0
-
-		if pendingToTrade[item] < 0 and -portfolio[item] >= positionLimit[item]:
-			pendingToTrade[item] = 0
-
-	### execute transaction
-	transactionLog[dateSequence[i]] = {}
-	for item in pendingToTrade:
-		if pendingToTrade[item] != 0:
-			portfolio[item] += pendingToTrade[item]
-			PL[-1] -= (TransactionCost[item] * np.abs(pendingToTrade[item]))
-			transactionLog[dateSequence[i]][item] = pendingToTrade[item]
-			pendingToTrade[item] = 0
-
-	### for performance estimation
-	if todayMaturity:
-		monthlyPL.append( (futures_data[i][futuresDateIdx], PL[-1]) )
+#fig = plt.figure(facecolor='white')
+#ax = fig.add_axes([0.2, 1.2, 1.6, 1.0])
+#ax.plot(arg, plresult)
+#ax.set_xlabel('Parameter R')
+#ax.set_ylabel('P&L')
+#plt.axhline(398450, color='red')
 
 PL = PL[1:]
 
 
-########################## Generating Graphs ##########################
-pl.plot( dateSequence[beginDateIndex:], PL )
+######################### Generating Report ##########################
+from matplotlib import pylab as pl
+import matplotlib.pyplot as plt
+
+originalReturnRate = 100 * returnRate( (stockPrice[beginDateIndex], stockPrice[-1]) )[0]
+totalReturn = 100 * PL[-1] / initCapital
+periodYears = (len(dateSequence) - beginDateIndex) / 248.0
+
+axescolor  = '#ffffff'
+left, width = 0.1, 1.5
+rect1 = [left, 1.2*2, width, 0.6*2]
+rect2 = [left, 0.8*2, width, 0.4*2]
+fig = plt.figure(facecolor='white')
+
+ax1 = fig.add_axes(rect1, axisbg=axescolor)  #left, bottom, width, height
+ax2 = fig.add_axes(rect2, axisbg=axescolor, sharex=ax1)
 
 
-returnRate = 100 * PL[-1] / initCapital
-periodYears = (len(dateSequence)-beginDateIndex) / 248.0
+ax1.plot(dateSequence[beginDateIndex:], (stockPrice[beginDateIndex:] - stockPrice[beginDateIndex])*portfolio['0050']*UNIT['0050'])
+ax1.plot(dateSequence[beginDateIndex:], PL)
+ax1.set_ylabel('''P&L
+Comparision''')
+ax1.grid(True)
+
+
+ax2.plot(dateSequence[beginDateIndex:], macd[beginDateIndex:] / fast[beginDateIndex:], 'r-')
+ax2.grid(True)
+ax2.set_ylabel('rMACD')
+
+
+
+#ax2.plot(dateSequence[beginDateIndex:], fast[beginDateIndex:], 'r-', dateSequence[beginDateIndex:],
+#         slow[beginDateIndex:], 'g-')
+
+strategyReportText = '''
+Period : {0:.2f} years
+Trading Times : {1}
+Max P&L :   {2:.0f}
+Min P&L :  {3:.0f}
+Final P&L : {4:.0f}
+Ttl Return : {5:.3f}%
+Avg Return : {6:.3f}%
+'''.format(periodYears,
+           len([log for log in transactionLog if len(transactionLog[log]) != 0]),
+           max(PL),
+           min(PL),
+           PL[-1],
+           totalReturn,
+           totalReturn / periodYears)
+
+fig.text(1.85, 3.5, strategyReportText, ha='right', va='center')
 
 if hedgeFlag:
 	print( 'Strategy : Hedging' )
+	ax2.set_yticks([-R, R])
 else:
 	print( 'Strategy : Aggressive Selling' )
-
-print( 'Period : {:.2f} years'.format(periodYears) )
-print( 'Trading Times : {}'.format(len([log for log in transactionLog if len(transactionLog[log]) != 0])) )
-print( 'Max P&L :   {:.0f}'.format(max(PL)) )
-print( 'Min P&L :  {:.0f}'.format(min(PL)) )
-print( 'Final P&L : {:.0f}'.format(PL[-1]) )
-print( 'Ttl Return : {:.3f}%'.format( returnRate ) )
-print( 'Avg Return : {:.3f}%'.format( returnRate / periodYears ) )
+	ax2.set_yticks([-R, -proportion*R, proportion*R, R])
