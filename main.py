@@ -138,8 +138,8 @@ sellOptionPrice = [data[optionCloseIdx] for data in selectedSellOptionData]
 
 #plresult = []
 
-proportion = 0.5
-arg = [0.05]
+proportion = 0.8
+arg = [0.052]
 for R in arg:
 	positionLimit = {'0050': 10,
 	                 'TXO': 10,
@@ -159,7 +159,8 @@ for R in arg:
 
 	transactionLog = {}
 	PL = [0]
-	monthlyPL = [(beginDate, 0)]
+	monthlyPL = [0]
+	maturities = []
 
 	#R = 0.05
 	slow, fast, macd = movingAverageConvergence(indexPrice)
@@ -261,7 +262,8 @@ for R in arg:
 
 		### for performance estimation
 		if todayMaturity:
-			monthlyPL.append((futures_data[i][futuresDateIdx], PL[-1]))
+			monthlyPL.append(PL[-1])
+			maturities.append(futures_data[i][futuresDateIdx])
 
 #	print constant
 #	plt.plot(dateSequence[beginDateIndex:], PL[1:])
@@ -285,6 +287,7 @@ import matplotlib.pyplot as plt
 originalReturnRate = 100 * returnRate( (stockPrice[beginDateIndex], stockPrice[-1]) )[0]
 totalReturn = 100 * PL[-1] / initCapital
 periodYears = (len(dateSequence) - beginDateIndex) / 248.0
+monthlyReturn = np.diff(monthlyPL) / initCapital
 
 axescolor  = '#ffffff'
 left, width = 0.1, 1.5
@@ -319,16 +322,29 @@ Max P&L :   {2:.0f}
 Min P&L :  {3:.0f}
 Final P&L : {4:.0f}
 Ttl Return : {5:.3f}%
-Avg Return : {6:.3f}%
+Avg Anl Return : {6:.3f}%
+
+Avg Mon Return : {7:.3f}%
+Stdev Mon Return : {8:.3f}%
+Max Mon Loss : {9}
+
+Parameter $R$ :  {10}%
 '''.format(periodYears,
            len([log for log in transactionLog if len(transactionLog[log]) != 0]),
            max(PL),
            min(PL),
            PL[-1],
            totalReturn,
-           totalReturn / periodYears)
+           totalReturn / periodYears,
+           np.average( monthlyReturn ) * 100,
+           stats.nanstd( monthlyReturn ) * 100,
+           min(np.diff(monthlyPL)),
+           R * 100 )
 
-fig.text(1.85, 3.5, strategyReportText, ha='right', va='center')
+if not hedgeFlag:
+	strategyReportText += 'Proportion $p$ : {}%'.format(proportion*100)
+
+fig.text(1.93, 3.35, strategyReportText, ha='right', va='center')
 
 if hedgeFlag:
 	print( 'Strategy : Hedging' )
